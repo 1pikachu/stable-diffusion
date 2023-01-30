@@ -9,6 +9,7 @@ https://github.com/CompVis/taming-transformers
 import torch
 import torch.nn as nn
 import numpy as np
+import time
 import pytorch_lightning as pl
 from torch.optim.lr_scheduler import LambdaLR
 from einops import rearrange, repeat
@@ -122,6 +123,10 @@ class DDPM(pl.LightningModule):
         self.ucg_training = ucg_training or dict()
         if self.ucg_training:
             self.ucg_prng = np.random.RandomState()
+
+        self.total_time = 0.0
+        self.total_count = 0
+        self.valid_count = 0
 
     def register_schedule(self, given_betas=None, beta_schedule="linear", timesteps=1000,
                           linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
@@ -429,6 +434,14 @@ class DDPM(pl.LightningModule):
     def on_train_batch_end(self, *args, **kwargs):
         if self.use_ema:
             self.model_ema(self.model)
+        duration = time.time() - self.start_time
+        # print(batch)
+        print("Iteration:{}, training time: {} sec.".format(self.total_count, duration))
+        self.total_count += 1
+        if self.total_count >= self.trainer.max_steps // 4:
+            self.total_time += duration
+            self.valid_count += 1
+        print("-----------train batch end")
 
     def _get_rows_from_list(self, samples):
         n_imgs_per_row = len(samples)
@@ -554,6 +567,8 @@ class LatentDiffusion(DDPM):
             self.register_buffer('scale_factor', 1. / z.flatten().std())
             print(f"setting self.scale_factor to {self.scale_factor}")
             print("### USING STD-RESCALING ###")
+        print("---------training batch start")
+        self.start_time = time.time()
 
     def register_schedule(self,
                           given_betas=None, beta_schedule="linear", timesteps=1000,

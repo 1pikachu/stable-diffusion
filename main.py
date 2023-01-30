@@ -835,6 +835,10 @@ if __name__ == "__main__":
             from pytorch_lightning.trainer.connectors.checkpoint_connector import CheckpointConnector
             setattr(CheckpointConnector, "hpc_resume_path", None)
 
+        trainer_kwargs["max_epochs"] = 1
+        trainer_kwargs["max_steps"] = 100
+        # trainer_kwargs["precision"] = 16
+        # trainer_kwargs["oob_device_str"] = "cuda"
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
         trainer.logdir = logdir  ###
 
@@ -899,6 +903,14 @@ if __name__ == "__main__":
         if opt.train:
             try:
                 trainer.fit(model, data)
+                batch_size = bs
+                avg_time = model.total_time / model.valid_count
+                latency = avg_time / batch_size * 1000
+                perf = batch_size / avg_time
+                print("total time:{}, total count:{}".format(model.total_time, model.valid_count))
+                print('%d epoch training latency: %6.2f ms'%(0, latency))
+                print('%d epoch training Throughput: %6.2f fps'%(0, perf))
+
             except Exception:
                 if not opt.debug:
                     melk()
